@@ -116,7 +116,6 @@ def parse_table():
 def download_pdf_files_from_links():
     # Download via selenium
     for item in links_to_visit:
-
         driver.get(item)
         if is_element_present_on_page('//*[@id="business-case-pdf"]/a'):
             driver.find_element_by_xpath('//*[@id="business-case-pdf"]/a').click()
