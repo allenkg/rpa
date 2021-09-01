@@ -34,7 +34,7 @@ class SeleniumDriver:
         self.driver.scroll_element_into_view(locator)
 
     def visit_url(self, url):
-        self.driver.open_browser(url=url, browser='Chrome', options=self.options)
+        self.driver.open_available_browser(url=url)
 
     def check_is_element_present_by_xpath(self, xpath, time_to_wait=10):
         element = WebDriverWait(self.driver, time_to_wait).until(
