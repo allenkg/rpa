@@ -1,6 +1,4 @@
 import time
-from io import BytesIO
-
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -9,6 +7,8 @@ from openpyxl import Workbook
 import os
 from selenium.webdriver.chrome.options import Options
 import sys
+from RPA.Browser.Selenium import Selenium
+
 
 CURRENT_DIR = os.path.abspath(os.getcwd())
 OUTPUT_DIR_NAME = 'output'
