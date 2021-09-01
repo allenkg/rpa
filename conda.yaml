@@ -1,0 +1,20 @@
+channels:
+  # Define conda channels here.
+  - conda-forge
+
+dependencies:
+  - python=3.7.5
+  - pip=20.1
+  - pip:
+      # Define pip packages here.
+      # https://pypi.org/
+      - charset-normalizer==2.0.4
+      - selenium==3.141.0
+      - openpyxl==3.0.7
+#      - rpaframework==10.9.2 # https://rpaframework.org/releasenotes.html
+#      - et-xmlfile==1.1.0
+#      - idna==3.2
+#      - pkg_resources==0.0.0
+#      - requests==2.26.0
+#      - urllib3==1.26.6
+

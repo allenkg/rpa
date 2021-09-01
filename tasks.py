@@ -169,7 +169,7 @@ class ItDashboardScraper:
 
 
 if __name__ == '__main__':
-    agency_name = sys.argv.pop()
+    agency_name = 'National Science Foundation'
     web_page_data_extracter = ItDashboardScraper(agency_name=agency_name)
     web_page_data_extracter.execute()
 
