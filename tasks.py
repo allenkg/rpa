@@ -18,16 +18,7 @@ XLSX_FILE_NAME = 'result.xlsx'
 class SeleniumDriver:
     def __init__(self):
         self.driver = None
-        self.options = Options()
-        self.options.add_experimental_option(
-            'prefs', {
-                "download.default_directory": os.path.join(CURRENT_DIR, 'output/'),
-                "download.prompt_for_download": False,
-                "download.directory_upgrade": True,
-                "plugins.always_open_pdf_externally": True
-            }
-        )
-        self.driver = webdriver.Chrome(options=self.options)
+        self.driver = webdriver.Chrome()
 
     def scroll_down(self):
         self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
