@@ -18,13 +18,15 @@ XLSX_FILE_NAME = 'result.xlsx'
 class SeleniumDriver:
     def __init__(self):
         self.driver = None
-        self.driver = webdriver.Chrome()
+        # self.driver = webdriver.Chrome()
+        self.driver = Selenium()
 
     def scroll_down(self):
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        pass
+        # self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
     def visit_url(self, url):
-        self.driver.get(url)
+        self.driver.open_available_browser(url)
 
     def check_is_element_present_by_xpath(self, xpath, time_to_wait=10):
         element = WebDriverWait(self.driver, time_to_wait).until(
@@ -41,15 +43,26 @@ class SeleniumDriver:
             EC.invisibility_of_element_located((By.CLASS_NAME, 'loading'))
         )
 
+    # def get_element_if_exists_by_xpath(self, xpath):
+    #     self.check_is_element_present_by_xpath(xpath)
+    #     return self.driver.find_element_by_xpath(xpath)
+
+    def search_for(self, term):
+        input_field = "css:input"
+        self.driver.input_text(input_field, term)
+        self.driver.press_keys(input_field, "ENTER")
+
     def get_element_if_exists_by_xpath(self, xpath):
-        self.check_is_element_present_by_xpath(xpath)
-        return self.driver.find_element_by_xpath(xpath)
+        selector = f'xpath:{xpath}'
+        return self.driver.find_element(selector)
+        # self.check_is_element_present_by_xpath(xpath)
+        # return self.driver.find_element_by_xpath(xpath)
 
     def fetch_elements_if_exists_by_xpath(self, xpath):
         return self.driver.find_elements_by_xpath(xpath)
 
     def quit(self):
-        self.driver.quit()
+        self.driver.close_all_browsers()
 
 
 class ExcelHandler:
@@ -150,11 +163,11 @@ class ItDashboardScraper:
             self.xlsx_handler.initialize()
             self.ws2 = self.xlsx_handler.create_sheet('individual investments')
             self.selenium_driver.visit_url(self.url)
-            self.parse_agencies()
-            self.xlsx_handler.write_to_file(self.agencies.items(), self.xlsx_handler.ws1)
-            self.check_agency()
-            self.download_pdf_files_from_links()
-            self.xlsx_handler.save()
+            # self.parse_agencies()
+            # self.xlsx_handler.write_to_file(self.agencies.items(), self.xlsx_handler.ws1)
+            # self.check_agency()
+            # self.download_pdf_files_from_links()
+            # self.xlsx_handler.save()
         finally:
             self.selenium_driver.quit()
 
