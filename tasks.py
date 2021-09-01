@@ -18,20 +18,39 @@ XLSX_FILE_NAME = 'result.xlsx'
 class SeleniumDriver:
     def __init__(self):
         self.driver = None
-        # self.driver = webdriver.Chrome()
+        self.options = Options()
+        self.options.add_experimental_option(
+            'prefs', {
+                "download.default_directory": os.path.join(CURRENT_DIR, 'output/'),
+                "download.prompt_for_download": False,
+                "download.directory_upgrade": True,
+                "plugins.always_open_pdf_externally": True
+            }
+        )
         self.driver = Selenium()
 
-    def scroll_down(self):
-        pass
-        # self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    def scroll_to_element(self, xpath):
+        locator = f'xpath:{xpath}'
+        self.driver.scroll_element_into_view(locator)
 
     def visit_url(self, url):
-        self.driver.open_available_browser(url)
+        self.driver.open_browser(url=url, browser='Chrome', options=self.options)
 
     def check_is_element_present_by_xpath(self, xpath, time_to_wait=10):
         element = WebDriverWait(self.driver, time_to_wait).until(
             EC.element_to_be_clickable((By.XPATH, xpath))
         )
+
+    def wait_until_element_presents(self, locator, time_wait):
+        self.driver.wait_until_element_is_visible(locator, time_wait)
+
+    def wait_until_disapear(self, class_name, time_wait):
+        locator = f'css:.{class_name}'
+        self.driver.wait_until_element_is_not_visible(locator, time_wait)
+
+    def check_is_element_present_by_xpath_v2(self, xpath, time_to_wait=10):
+        locator = f'xpath:{xpath}'
+        self.driver.wait_until_element_is_visible(locator)
 
     def check_is_element_is_not_present_by_xpath(self, xpath, time_to_wait=10):
         element = WebDriverWait(self.driver, time_to_wait).until(
@@ -43,23 +62,21 @@ class SeleniumDriver:
             EC.invisibility_of_element_located((By.CLASS_NAME, 'loading'))
         )
 
-    # def get_element_if_exists_by_xpath(self, xpath):
-    #     self.check_is_element_present_by_xpath(xpath)
-    #     return self.driver.find_element_by_xpath(xpath)
-
     def search_for(self, term):
         input_field = "css:input"
         self.driver.input_text(input_field, term)
         self.driver.press_keys(input_field, "ENTER")
 
-    def get_element_if_exists_by_xpath(self, xpath):
+    def click(self, element):
+        self.driver.click_element(element)
+
+    def find_element_if_exists_by_xpath(self, xpath):
         selector = f'xpath:{xpath}'
         return self.driver.find_element(selector)
-        # self.check_is_element_present_by_xpath(xpath)
-        # return self.driver.find_element_by_xpath(xpath)
 
     def fetch_elements_if_exists_by_xpath(self, xpath):
-        return self.driver.find_elements_by_xpath(xpath)
+        locator = f'xpath:{xpath}'
+        return self.driver.find_elements(locator)
 
     def quit(self):
         self.driver.close_all_browsers()
@@ -116,9 +133,10 @@ class ItDashboardScraper:
         self.selenium_driver = SeleniumDriver()
 
     def parse_agencies(self):
-        dive_in_button = self.selenium_driver.get_element_if_exists_by_xpath(self.dive_in_xpath)
-        dive_in_button.click()
-        self.selenium_driver.check_is_element_present_by_xpath(self.agency_item_xpath)
+        dive_in_button = self.selenium_driver.find_element_if_exists_by_xpath(self.dive_in_xpath)
+        self.selenium_driver.click(dive_in_button)
+
+        self.selenium_driver.check_is_element_present_by_xpath_v2(self.agency_item_xpath)
         agencies_elements = self.selenium_driver.fetch_elements_if_exists_by_xpath(self.agency_items_xpath)
         for item in agencies_elements:
             name = item.find_element_by_xpath('./span[1]').text
@@ -129,33 +147,35 @@ class ItDashboardScraper:
 
 
     def parse_table(self):
-        if self.selenium_driver.is_loading(20) is None:
-            table_body = self.selenium_driver.get_element_if_exists_by_xpath('//*[@id="investments-table-object"]/tbody')
-            for row in table_body.find_elements_by_xpath('./tr'):
-                _row = []
-                for index, col in enumerate(row.find_elements_by_xpath('./td')):
-                    _row.append(col.text)
-                    link_text = col.find_elements_by_link_text(col.text)
-                    if link_text:
-                        self.links_to_download_pdf.append(link_text[0].get_attribute('href'))
-                self.ws2.append(_row)
+        # if self.selenium_driver.wait_until_disapear('loading'):
+        self.selenium_driver.wait_until_disapear('loading', 20)
+        table_body = self.selenium_driver.find_element_if_exists_by_xpath('//*[@id="investments-table-object"]/tbody')
+        for row in table_body.find_elements_by_xpath('./tr'):
+            _row = []
+            for index, col in enumerate(row.find_elements_by_xpath('./td')):
+                _row.append(col.text)
+                link_text = col.find_elements_by_link_text(col.text)
+                if link_text:
+                    self.links_to_download_pdf.append(link_text[0].get_attribute('href'))
+            self.ws2.append(_row)
 
     def check_agency(self):
-        self.agency_obj.click()
-        self.selenium_driver.scroll_down()
-        self.selenium_driver.check_is_element_present_by_xpath(self.table_element_xpath, 20)
-        select_element = self.selenium_driver.get_element_if_exists_by_xpath('//*[@id="investments-table-object_length"]/label/select')
-        select_element.click()
-        show_all_element = self.selenium_driver.get_element_if_exists_by_xpath('//*[@id="investments-table-object_length"]/label/select/option[4]')
+        self.selenium_driver.click(self.agency_obj)
+        self.selenium_driver.scroll_to_element('//*[@id="block-itdb-custom--5"]/div/div/div/div[2]/div/div[2]/h4')
+        self.selenium_driver.wait_until_element_presents('css:select', 15)
+        select_element = self.selenium_driver.find_element_if_exists_by_xpath('//*[@id="investments-table-object_length"]/label/select')
+        self.selenium_driver.click(select_element)
+        show_all_element = self.selenium_driver.find_element_if_exists_by_xpath('//*[@id="investments-table-object_length"]/label/select/option[4]')
         show_all_element.click()
+        self.selenium_driver.click(show_all_element)
         self.parse_table()
 
     def download_pdf_files_from_links(self):
         for item in self.links_to_download_pdf:
             self.selenium_driver.visit_url(item)
-            self.selenium_driver.check_is_element_present_by_xpath('//*[@id="business-case-pdf"]/a')
-            element = self.selenium_driver.get_element_if_exists_by_xpath('//*[@id="business-case-pdf"]/a')
-            element.click()
+            self.selenium_driver.wait_until_element_presents(f'xpath://*[@id="business-case-pdf"]/a', 10)
+            element = self.selenium_driver.find_element_if_exists_by_xpath('//*[@id="business-case-pdf"]/a')
+            self.selenium_driver.click(element)
             time.sleep(10)
 
     def execute(self):
@@ -163,11 +183,11 @@ class ItDashboardScraper:
             self.xlsx_handler.initialize()
             self.ws2 = self.xlsx_handler.create_sheet('individual investments')
             self.selenium_driver.visit_url(self.url)
-            # self.parse_agencies()
-            # self.xlsx_handler.write_to_file(self.agencies.items(), self.xlsx_handler.ws1)
-            # self.check_agency()
-            # self.download_pdf_files_from_links()
-            # self.xlsx_handler.save()
+            self.parse_agencies()
+            self.xlsx_handler.write_to_file(self.agencies.items(), self.xlsx_handler.ws1)
+            self.check_agency()
+            self.download_pdf_files_from_links()
+            self.xlsx_handler.save()
         finally:
             self.selenium_driver.quit()
 
