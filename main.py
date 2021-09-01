@@ -10,27 +10,30 @@ import os
 from selenium.webdriver.chrome.options import Options
 import sys
 
-current_dir = os.path.abspath(os.getcwd())
+CURRENT_DIR = os.path.abspath(os.getcwd())
+OUTPUT_DIR_NAME = 'output'
+XLSX_FILE_NAME = 'result.xlsx'
 
 
 class SeleniumDriver:
     def __init__(self):
         self.driver = None
         self.options = Options()
-
-    def set_options(self):
         self.options.add_experimental_option(
             'prefs', {
-                "download.default_directory": os.path.join(current_dir, 'output/'),
+                "download.default_directory": os.path.join(CURRENT_DIR, 'output/'),
                 "download.prompt_for_download": False,
                 "download.directory_upgrade": True,
                 "plugins.always_open_pdf_externally": True
             }
         )
-
-    def initialize_driver(self):
-        self.set_options()
         self.driver = webdriver.Chrome(options=self.options)
+
+    def scroll_down(self):
+        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+    def visit_url(self, url):
+        self.driver.get(url)
 
     def check_is_element_present_by_xpath(self, xpath, time_to_wait=10):
         element = WebDriverWait(self.driver, time_to_wait).until(
@@ -54,15 +57,22 @@ class SeleniumDriver:
     def fetch_elements_if_exists_by_xpath(self, xpath):
         return self.driver.find_elements_by_xpath(xpath)
 
+    def quit(self):
+        self.driver.quit()
+
 
 class ExcelHandler:
     def __init__(self):
         self.wb = Workbook()
-        if not os.path.exists('output'):
-            os.makedirs('output')
-        self.destination_file_name = 'output/result.xlsx'
+        self.destination_file_name = f'{OUTPUT_DIR_NAME}/{XLSX_FILE_NAME}'
+
+    @staticmethod
+    def check_or_create_folder():
+        if not os.path.exists(OUTPUT_DIR_NAME):
+            os.makedirs(OUTPUT_DIR_NAME)
 
     def initialize(self):
+        self.check_or_create_folder()
         self.ws1 = self.wb.active
         self.ws1.title = 'Agencies'
         self.ws1.append([
@@ -84,9 +94,8 @@ class ExcelHandler:
         return self.wb.create_sheet(title=title)
 
 
-class WebPageDataExtracter(SeleniumDriver):
+class ItDashboardScraper:
     def __init__(self, agency_name):
-        super().__init__()
         self.links_to_download_pdf = []
         self.agencies = {}
         self.url = 'https://itdashboard.gov/'
@@ -96,16 +105,17 @@ class WebPageDataExtracter(SeleniumDriver):
         self.table_element_xpath = '//*[@id="investments-table-object_wrapper"]/div[3]/div[1]/div/table/thead/tr[2]/th[1]'
         self.select_element_xpath = '//*[@id="investments-table-object_length"]/label/select'
         self.all_options_xpath = '//*[@id="investments-table-object_length"]/label/select/option[4]'
-        self.xlsx_handler = ExcelHandler()
         self.agency_name = agency_name
         self.agency_obj = None
         self.downloaded_pdf_file_names = []
+        self.xlsx_handler = ExcelHandler()
+        self.selenium_driver = SeleniumDriver()
 
     def parse_agencies(self):
-        dive_in_button = self.get_element_if_exists_by_xpath(self.dive_in_xpath)
+        dive_in_button = self.selenium_driver.get_element_if_exists_by_xpath(self.dive_in_xpath)
         dive_in_button.click()
-        self.check_is_element_present_by_xpath(self.agency_item_xpath)
-        agencies_elements = self.fetch_elements_if_exists_by_xpath(self.agency_items_xpath)
+        self.selenium_driver.check_is_element_present_by_xpath(self.agency_item_xpath)
+        agencies_elements = self.selenium_driver.fetch_elements_if_exists_by_xpath(self.agency_items_xpath)
         for item in agencies_elements:
             name = item.find_element_by_xpath('./span[1]').text
             value = item.find_element_by_xpath('./span[2]').text
@@ -113,9 +123,10 @@ class WebPageDataExtracter(SeleniumDriver):
             if name == self.agency_name:
                 self.agency_obj = item
 
+
     def parse_table(self):
-        if self.is_loading(20) is None:
-            table_body = self.get_element_if_exists_by_xpath('//*[@id="investments-table-object"]/tbody')
+        if self.selenium_driver.is_loading(20) is None:
+            table_body = self.selenium_driver.get_element_if_exists_by_xpath('//*[@id="investments-table-object"]/tbody')
             for row in table_body.find_elements_by_xpath('./tr'):
                 _row = []
                 for index, col in enumerate(row.find_elements_by_xpath('./td')):
@@ -127,42 +138,38 @@ class WebPageDataExtracter(SeleniumDriver):
 
     def check_agency(self):
         self.agency_obj.click()
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        self.check_is_element_present_by_xpath(self.table_element_xpath, 20)
-        select_element = self.get_element_if_exists_by_xpath('//*[@id="investments-table-object_length"]/label/select')
+        self.selenium_driver.scroll_down()
+        self.selenium_driver.check_is_element_present_by_xpath(self.table_element_xpath, 20)
+        select_element = self.selenium_driver.get_element_if_exists_by_xpath('//*[@id="investments-table-object_length"]/label/select')
         select_element.click()
-        show_all_element = self.get_element_if_exists_by_xpath('//*[@id="investments-table-object_length"]/label/select/option[4]')
+        show_all_element = self.selenium_driver.get_element_if_exists_by_xpath('//*[@id="investments-table-object_length"]/label/select/option[4]')
         show_all_element.click()
         self.parse_table()
 
     def download_pdf_files_from_links(self):
         for item in self.links_to_download_pdf:
-            self.driver.get(item)
-            self.check_is_element_present_by_xpath('//*[@id="business-case-pdf"]/a')
-            element = self.get_element_if_exists_by_xpath('//*[@id="business-case-pdf"]/a')
+            self.selenium_driver.visit_url(item)
+            self.selenium_driver.check_is_element_present_by_xpath('//*[@id="business-case-pdf"]/a')
+            element = self.selenium_driver.get_element_if_exists_by_xpath('//*[@id="business-case-pdf"]/a')
             element.click()
             time.sleep(10)
 
-    def pdf_reader(self):
-        pass
-
     def execute(self):
         try:
-            self.initialize_driver()
             self.xlsx_handler.initialize()
             self.ws2 = self.xlsx_handler.create_sheet('individual investments')
-            self.driver.get(self.url)
+            self.selenium_driver.visit_url(self.url)
             self.parse_agencies()
             self.xlsx_handler.write_to_file(self.agencies.items(), self.xlsx_handler.ws1)
             self.check_agency()
             self.download_pdf_files_from_links()
             self.xlsx_handler.save()
         finally:
-            self.driver.quit()
+            self.selenium_driver.quit()
 
 
 if __name__ == '__main__':
     agency_name = sys.argv.pop()
-    web_page_data_extracter = WebPageDataExtracter(agency_name=agency_name)
+    web_page_data_extracter = ItDashboardScraper(agency_name=agency_name)
     web_page_data_extracter.execute()
 
